@@ -3,8 +3,9 @@ import { Inter } from "next/font/google";
 import type { PropsWithChildren } from "react";
 
 import "@/app/globals.css";
+import type { Metadata } from "next";
 
-export const Metadata = {
+export const metadata: Metadata = {
   title: "Threads",
   description: "A Next.js 13 Meta Threads Application",
 };
