@@ -1,10 +1,13 @@
 "use server"
 
 import { revalidatePath } from "next/cache";
-import User from "@/lib/models/user.model";
 import { connectToDB } from "@/lib/mongoose"
-import type { FilterQuery, SortOrder } from "mongoose";
+
+import User from "@/lib/models/user.model";
 import Thread from "@/lib/models/thread.model";
+import Community from "@/lib/models/community.model";
+
+import type { FilterQuery, SortOrder } from "mongoose";
 
 type Params = {
   userId: string,
@@ -135,5 +138,40 @@ export async function getActivity(userId: string) {
 
   } catch(error: any) {
     throw new Error(`Failed to fetch activity: ${error.message}`)
+  }
+}
+
+export async function fetchUserPosts(userId: string) {
+  try {
+    connectToDB();
+
+    // Find all threads authored by user with the given userId
+    const threads = await User.findOne({
+      id: userId
+    })
+    .populate({
+      path: 'threads',
+      model: Thread,
+      populate: [
+        {
+          path: "community",
+          model: Community,
+          select: "name id image _id", // Select the "name" and "_id" fields from the "Community" model
+        },
+        {
+          path: "children",
+          model: Thread,
+          populate: {
+            path: "author",
+            model: User,
+            select: "name image id", // Select the "name" and "_id" fields from the "User" model
+          },
+        },
+      ],
+    })
+
+    return threads;
+  } catch (error: any) {
+    throw new Error(`Failed to fetch posts: ${error.message}`)
   }
 }

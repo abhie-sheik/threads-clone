@@ -1,6 +1,7 @@
-import { fetchUserPosts } from "@/lib/actions/thread.actions";
+import { fetchUserPosts } from "@/lib/actions/user.actions";
 import { redirect } from "next/navigation";
 import ThreadCard from "@/components/cards/ThreadCard";
+import { fetchCommunityPosts } from "@/lib/actions/community.actions";
 
 type Props = {
   currentUserId: string;
@@ -13,24 +14,42 @@ export default async function ThreadsTab({
   accountId,
   accountType,
 }: Props) {
-  let result = await fetchUserPosts(accountId);
+  let result: any;
 
-  if (!result) redirect('/')
+  if (accountType === "Community") {
+    result = await fetchCommunityPosts(accountId);
+  } else {
+    result = await fetchUserPosts(accountId);
+  }
+
+  if (!result) redirect("/");
 
   return (
     <section className="mt-9 flex flex-col gap-10">
       {result.threads.map((thread: any) => (
-        <ThreadCard 
+        <ThreadCard
           key={thread._id}
           id={thread._id}
           currentUserId={currentUserId}
           parentId={thread.parentId}
           content={thread.text}
-          author={accountType === "User" ? { name: result.name, image: result.image, id: result.id } : { name: thread.author.name, image: thread.author.image, id: thread.author.id } } // TODO : 
-          community={thread.community} // TODO :
+          author={
+            accountType === "User"
+              ? { name: result.name, image: result.image, id: result.id }
+              : {
+                  name: thread.author.name,
+                  image: thread.author.image,
+                  id: thread.author.id,
+                }
+          } // TODO :
+          community={
+            accountType === "Community"
+              ? { name: result.name, id: result.id, image: result.image }
+              : thread.community
+          }
           createdAt={thread.createdAt}
           comments={thread.children}
-      />
+        />
       ))}
     </section>
   );

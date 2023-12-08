@@ -1,9 +1,11 @@
 "use server"
 
-import Thread from "@/lib/models/thread.model";
-import { connectToDB } from "@/lib/mongoose";
-import User from "@/lib/models/user.model";
 import { revalidatePath } from "next/cache";
+import { connectToDB } from "@/lib/mongoose";
+
+import User from "@/lib/models/user.model";
+import Thread from "@/lib/models/thread.model";
+import Community from "@/lib/models/community.model";
 
 type Params = {
   text: string;
@@ -16,16 +18,27 @@ export async function createThread({ text, author, communityId, path }: Params) 
   try {
     connectToDB();
 
+    const communityIdObject = await Community.findOne(
+      { id: communityId },
+    );
+
     const createdThread = await Thread.create({
       text,
       author,
-      community: null,
+      community: communityIdObject,
     });
 
     // Update user model
     await User.findByIdAndUpdate(author, {
       $push: { threads: createdThread._id },
     });
+
+    if (communityIdObject) {
+      // Update Community model
+      await Community.findByIdAndUpdate(communityIdObject, {
+        $push: { threads: createdThread._id },
+      });
+    }
 
     revalidatePath(path);
   } catch (error: any) {
@@ -53,6 +66,10 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
     .populate({
       path: 'author',
       model: User
+    })
+    .populate({
+      path: "community",
+      model: Community,
     })
     .populate({
       path: 'children',
@@ -93,6 +110,11 @@ export async function fetchThreadById(id: string) {
       model: User,
       select: "_id id name image"
     })
+    .populate({
+      path: "community",
+      model: Community,
+      select: "_id id name image",
+    }) // Populate the community field with _id and name
     .populate({
       path: 'children',
       populate: [
@@ -163,34 +185,4 @@ export async function addCommentToThread({
     throw new Error(`Error adding comment to the thread: ${error.message}`)
   }
 
-}
-
-export async function fetchUserPosts(userId: string) {
-  try {
-    connectToDB();
-
-    // Find all threads authored by user with the given userId
-
-    // TODO: populate community
-    const threads = await User.findOne({
-      id: userId
-    })
-    .populate({
-      path: 'threads',
-      model: Thread,
-      populate: {
-        path: 'children',
-        model: Thread,
-        populate: {
-          path: 'author',
-          model: User,
-          select: "name image _id"
-        }
-      }
-    })
-
-    return threads;
-  } catch (error: any) {
-    throw new Error(`Failed to fetch posts: ${error.message}`)
-  }
 }
